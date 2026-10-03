@@ -135,6 +135,11 @@ function settle!(d::SOLO50)
     end
 end
 
+"""
+    position_usteps(dev) -> UInt32
+
+Current position in µsteps (0.09375 µm each), interpolated live while a move runs.
+"""
 position_usteps(d::SOLO50) = lock(() -> UInt32(pos_at(d, d.clock())), d.lock)
 
 # Front panel. While a move runs or is paused every input is ignored, except the
@@ -164,7 +169,20 @@ function press_move_button!(d::SOLO50, kind::Symbol)
     end
 end
 
+"""
+    press_home!(dev)
+
+Press HOME. When idle, start moving to the stored home position. During a HOME move,
+toggle pause/resume. Ignored during any other move.
+"""
 press_home!(d::SOLO50) = press_move_button!(d, :home)
+
+"""
+    press_work!(dev)
+
+Press WORK. When idle, start moving to the stored work position. During a WORK move,
+toggle pause/resume. Ignored during any other move.
+"""
 press_work!(d::SOLO50) = press_move_button!(d, :work)
 
 # Run `f(t)` under the lock only if the device is idle.
@@ -176,14 +194,59 @@ function when_idle(f, d::SOLO50)
     end
 end
 
+"""
+    hold_home!(dev)
+
+Hold HOME: store the current position as home. Ignored during a move.
+"""
 hold_home!(d::SOLO50) = when_idle(t -> d.home = pos_at(d, t), d)
+
+"""
+    hold_work!(dev)
+
+Hold WORK: store the current position as work. Ignored during a move.
+"""
 hold_work!(d::SOLO50) = when_idle(t -> d.work = pos_at(d, t), d)
+
+"""
+    hold_relative!(dev)
+
+Hold RELATIVE: zero the relative display at the current position. Ignored during a
+move.
+"""
 hold_relative!(d::SOLO50) = when_idle(t -> d.rel_origin = pos_at(d, t), d)
+
+"""
+    press_relative!(dev)
+
+Press RELATIVE: toggle the screen between absolute (green) and relative (blue) mode.
+Display only; serial coordinates stay absolute. Ignored during a move.
+"""
 press_relative!(d::SOLO50) = when_idle(_ -> d.relative = !d.relative, d)
+
+"""
+    press_speed!(dev)
+
+Press SPEED: cycle the stored knob speed 0 → 1 → 2 → 3 → 0. Stored only; it does not
+change `turn_knob!`. Ignored during a move.
+"""
 press_speed!(d::SOLO50) = when_idle(_ -> d.knob_speed = mod(d.knob_speed + 1, 4), d)
+
+"""
+    pulse!(dev)
+
+Press PULSE: move +30 µsteps (2.85 µm), clamped to the end of travel. Ignored during a
+move.
+"""
 pulse!(d::SOLO50) =
     when_idle(t -> start_move!(d, :pulse, pos_at(d, t) + PULSE_USTEPS, t), d)
 
+"""
+    turn_knob!(dev, Δum)
+
+Turn the knob: jump instantly by `Δum` µm (rounded to µsteps, clamped to 0–50,000 µm).
+Ignored during a move.
+"""
 function turn_knob!(d::SOLO50, Δum::Real)
     when_idle(d) do t
         p = clamp_us(pos_at(d, t) + um2us(Δum))
@@ -191,6 +254,13 @@ function turn_knob!(d::SOLO50, Δum::Real)
     end
 end
 
+"""
+    screen(dev) -> (absolute_um, relative_um, color)
+
+What the controller's screen shows: absolute and relative position in whole µm and the
+color, which is `:red` during a move (running or paused), otherwise `:blue` in relative
+mode or `:green`.
+"""
 function screen(d::SOLO50)
     lock(d.lock) do
         t = d.clock()

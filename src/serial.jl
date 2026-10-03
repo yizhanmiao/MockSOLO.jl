@@ -170,7 +170,21 @@ function Base.wait(m::MockSOLO50)
     return nothing
 end
 
+"""
+    portname(dev) -> String
+
+Path of the virtual serial port, e.g. `"/dev/ttys004"`. Give this to the host software.
+Readable after `stop`.
+"""
 portname(m::MockSOLO50) = m.portname
+
+"""
+    traffic(dev) -> Vector{@NamedTuple{t::Float64, dir::Symbol, bytes::Vector{UInt8}}}
+
+Copy of the traffic log. `t` is seconds since `start` and `dir` is `:in` (host → mock)
+or `:out` (mock → host). There is one entry per read chunk and one per reply. Readable
+after `stop`.
+"""
 traffic(m::MockSOLO50) = lock(() -> copy(m.log), m.loglock)
 
 for f in (:position_usteps, :screen, :press_home!, :hold_home!, :press_work!, :hold_work!,
