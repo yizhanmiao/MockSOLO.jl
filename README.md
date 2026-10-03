@@ -1,0 +1,71 @@
+# MockSOLO
+
+A mock **Sutter SOLO-50** micromanipulator for testing host software without
+hardware. It serves the SOLO's USB/serial protocol (Operation Manual Rev. 1.09b,
+chapter 4) on a virtual serial port (POSIX pty), so anything that can open a COM
+port — pyserial, LabVIEW, LibSerialPort.jl — can talk to it. From Julia you can also
+press the front-panel buttons and read a log of every byte exchanged.
+
+macOS and Linux only.
+
+## Quick start (Julia)
+
+```julia
+using MockSOLO
+dev = MockSOLO.start(timescale = 100)   # moves run 100× faster; Inf = instant
+portname(dev)                           # e.g. "/dev/ttys004" — give this to the host
+press_home!(dev)                        # simulate a person at the controller
+position_usteps(dev)                    # live position in microsteps
+screen(dev)                             # (absolute_um = …, relative_um = …, color = …)
+traffic(dev)                            # [(t, dir = :in/:out, bytes), …]
+stop(dev)
+```
+
+Front panel: `press_home!`, `hold_home!`, `press_work!`, `hold_work!`, `pulse!`,
+`press_relative!`, `hold_relative!`, `press_speed!`, `turn_knob!(dev, Δum)`.
+
+## Standalone (e.g. pytest)
+
+```
+julia --project=/path/to/MockSOLO -e 'using MockSOLO; d = MockSOLO.start(); println(portname(d)); flush(stdout); wait(d)'
+```
+
+prints the port path, then serves until killed.
+
+```python
+import subprocess, serial
+
+proc = subprocess.Popen(
+    ["julia", "--project=/path/to/MockSOLO", "-e",
+     "using MockSOLO; d = MockSOLO.start(timescale=100); "
+     "println(portname(d)); flush(stdout); wait(d)"],
+    stdout=subprocess.PIPE, text=True)
+port = proc.stdout.readline().strip()
+s = serial.Serial(port, 57600, timeout=5)
+s.reset_input_buffer()
+s.write(b"c")
+pos = int.from_bytes(s.read(5)[:4], "little")   # 10667 µsteps = 1000 µm
+proc.terminate()
+```
+
+## Behavior where the manual is silent
+
+| Situation | Mock behavior |
+|---|---|
+| Byte order of u32/u16 | least-significant byte first |
+| `v` (set velocity) | accepted, no effect — SOLO-50 has one speed (3000 µm/s) |
+| Target > 533,334 µsteps | clamped to 533,334 |
+| `H` / `W` | store the target as home / work, then move there |
+| Bytes sent during a move | queued, answered after the move's CR |
+| Unknown command byte | dropped silently |
+| Serial move during a front-panel move | takes over from the current position |
+| Front panel during any move | ignored, except HOME/WORK pausing their own move |
+| Startup / default home / default work | 1000 µm (10,667 µsteps) |
+
+## Limitations
+
+- The mock holds the port open between host sessions, so replies a host never read
+  are still queued when the next host opens the port. Purge the input buffer after
+  opening (as manual §4.2 note 3 recommends).
+- Baud rate and framing are not enforced (a pty has none).
+- Windows is not supported (would need com0com).
