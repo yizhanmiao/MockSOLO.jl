@@ -74,6 +74,8 @@ Rules:
   so unit tests can drive a fake clock.
 - Pausing freezes the position; resuming starts a new move segment from it to the
   same target.
+- After the server has slept through a serial move it snaps the position to the
+  target, so a `c` sent right after the CR reads the target exactly despite timer jitter.
 
 ## Front panel (Julia API)
 
@@ -149,7 +151,7 @@ wait(dev)              # block until stopped
 Standalone use (e.g. pytest harness), documented in README:
 
 ```
-julia --project -e 'using MockSOLO; d = MockSOLO.start(); println(portname(d)); wait(d)'
+julia --project -e 'using MockSOLO; d = MockSOLO.start(); println(portname(d)); flush(stdout); wait(d)'
 ```
 
 ## Error handling
@@ -157,7 +159,8 @@ julia --project -e 'using MockSOLO; d = MockSOLO.start(); println(portname(d)); 
 - `start` on Windows: error explaining a POSIX pty is required.
 - `openpty` / termios failures: `SystemError` via `systemerror`.
 - Server task exception: logged with `@error`, rethrown from `stop` / `wait`.
-- Any front-panel or query call after `stop`: error.
+- Front-panel calls, `position_usteps` and `screen` after `stop`: error.
+  `traffic` and `portname` stay readable for post-mortems.
 
 ## Testing
 
