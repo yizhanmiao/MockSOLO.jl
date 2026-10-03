@@ -1,0 +1,13 @@
+name = "MockSOLO"
+uuid = "9bbf5785-f3df-4456-bcbe-bf72a50ad768"
+authors = ["Yizhan <myz60133@me.com>"]
+version = "0.1.0"
+
+[compat]
+julia = "1.10"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
