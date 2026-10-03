@@ -136,3 +136,68 @@ function settle!(d::SOLO50)
 end
 
 position_usteps(d::SOLO50) = lock(() -> UInt32(pos_at(d, d.clock())), d.lock)
+
+# Front panel. While a move runs or is paused every input is ignored, except the
+# button that started a HOME/WORK move, which toggles its pause.
+
+function toggle_pause!(d::SOLO50, t)
+    m = d.move
+    if d.paused
+        d.move = Move(m.kind, m.from, m.to, t)
+        d.paused = false
+    else
+        d.move = Move(m.kind, pos_at(d, t), m.to, t)
+        d.paused = true
+    end
+    return nothing
+end
+
+function press_move_button!(d::SOLO50, kind::Symbol)
+    lock(d.lock) do
+        t = d.clock()
+        if !busy(d, t)
+            start_move!(d, kind, kind === :home ? d.home : d.work, t)
+        elseif d.move.kind === kind
+            toggle_pause!(d, t)
+        end
+        return nothing
+    end
+end
+
+press_home!(d::SOLO50) = press_move_button!(d, :home)
+press_work!(d::SOLO50) = press_move_button!(d, :work)
+
+# Run `f(t)` under the lock only if the device is idle.
+function when_idle(f, d::SOLO50)
+    lock(d.lock) do
+        t = d.clock()
+        busy(d, t) || f(t)
+        return nothing
+    end
+end
+
+hold_home!(d::SOLO50) = when_idle(t -> d.home = pos_at(d, t), d)
+hold_work!(d::SOLO50) = when_idle(t -> d.work = pos_at(d, t), d)
+hold_relative!(d::SOLO50) = when_idle(t -> d.rel_origin = pos_at(d, t), d)
+press_relative!(d::SOLO50) = when_idle(_ -> d.relative = !d.relative, d)
+press_speed!(d::SOLO50) = when_idle(_ -> d.knob_speed = mod(d.knob_speed + 1, 4), d)
+pulse!(d::SOLO50) =
+    when_idle(t -> start_move!(d, :pulse, pos_at(d, t) + PULSE_USTEPS, t), d)
+
+function turn_knob!(d::SOLO50, Δum::Real)
+    when_idle(d) do t
+        p = clamp_us(pos_at(d, t) + um2us(Δum))
+        d.move = Move(:knob, p, p, t)
+    end
+end
+
+function screen(d::SOLO50)
+    lock(d.lock) do
+        t = d.clock()
+        p = pos_at(d, t)
+        color = busy(d, t) ? :red : d.relative ? :blue : :green
+        return (absolute_um = round(Int, p * USTEP_UM),
+                relative_um = round(Int, (p - d.rel_origin) * USTEP_UM),
+                color = color)
+    end
+end

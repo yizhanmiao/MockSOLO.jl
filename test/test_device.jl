@@ -30,7 +30,9 @@ end
     @test length(buf) == 4
 end
 
-using MockSOLO: SOLO50, execute!, settle!, MAX_USTEPS, STARTUP_USTEPS
+using MockSOLO: SOLO50, execute!, settle!, MAX_USTEPS, STARTUP_USTEPS, position_usteps,
+               screen, press_home!, hold_home!, press_work!, hold_work!, pulse!,
+               press_relative!, hold_relative!, press_speed!, turn_knob!
 
 # A device driven by a hand-set clock: assign `now[]` to move time forward.
 function fake_device(; timescale = 1.0)
@@ -100,4 +102,105 @@ end
     @test run!(SOLO50(timescale = Inf), 'x', MAX_USTEPS)[2] == 0.0
     @test_throws ArgumentError SOLO50(timescale = 0)
     @test_throws ArgumentError SOLO50(timescale = -1)
+end
+
+@testset "HOME/WORK buttons: move, pause, resume" begin
+    d, now = fake_device()
+    turn_knob!(d, 3000)                  # 10,667 → 42,667 instantly
+    @test position_usteps(d) == 42_667
+    press_home!(d)                       # back to 10,667: 32,000 µsteps = 1 s
+    now[] = 0.5
+    @test position_usteps(d) == 26_667
+    @test screen(d).color === :red
+    press_work!(d)                       # the other move button is ignored
+    @test !d.paused
+    press_home!(d)                       # pause
+    now[] = 2.0
+    @test position_usteps(d) == 26_667
+    @test screen(d).color === :red       # paused still counts as a move
+    press_home!(d)                       # resume: 16,000 µsteps left = 0.5 s
+    now[] = 2.25
+    @test position_usteps(d) == 18_667
+    now[] = 2.5
+    @test position_usteps(d) == 10_667
+    @test screen(d).color === :green
+
+    turn_knob!(d, 500)                   # 10,667 + 5,333 = 16,000
+    hold_work!(d)
+    @test d.work == 16_000
+    turn_knob!(d, -500)
+    press_work!(d)
+    now[] += 1.0
+    @test position_usteps(d) == 16_000
+end
+
+@testset "front panel ignored during a serial move" begin
+    d, now = fake_device()
+    run!(d, 'x', 42_667)
+    now[] = 0.5
+    for f! in (press_home!, press_work!, hold_home!, hold_work!, pulse!,
+               press_relative!, hold_relative!, press_speed!)
+        f!(d)
+    end
+    turn_knob!(d, 100)
+    @test d.move.kind === :serial
+    @test !d.paused
+    @test (d.home, d.work, d.rel_origin, d.relative, d.knob_speed) ==
+          (STARTUP_USTEPS, STARTUP_USTEPS, 0, false, 0)
+    now[] = 1.0
+    @test position_usteps(d) == 42_667
+end
+
+@testset "serial move takes over a front-panel move" begin
+    d, now = fake_device()
+    turn_knob!(d, 3000)
+    press_home!(d)
+    now[] = 0.5
+    press_home!(d)                       # paused at 26,667
+    _, wait = run!(d, 'x', 0)
+    @test !d.paused
+    @test d.move.kind === :serial
+    @test d.move.from == 26_667
+    @test wait ≈ 26_667 * 0.09375 / 3000
+
+    d, now = fake_device()               # a running (unpaused) move too
+    turn_knob!(d, 3000)
+    press_home!(d)
+    now[] = 0.25
+    run!(d, 'x', 50_000)
+    @test (d.move.from, d.move.to) == (34_667, 50_000)
+end
+
+@testset "pulse, knob, hold, relative, speed, screen" begin
+    d, now = fake_device()
+    @test screen(d) == (absolute_um = 1000, relative_um = 1000, color = :green)
+    pulse!(d)
+    @test d.move.to == STARTUP_USTEPS + 30
+    now[] = 1.0
+    hold_home!(d)
+    @test d.home == STARTUP_USTEPS + 30
+    turn_knob!(d, -5000)                 # clamps at beginning of travel
+    @test position_usteps(d) == 0
+    turn_knob!(d, 60_000)                # clamps at end of travel
+    @test position_usteps(d) == MAX_USTEPS
+    pulse!(d)                            # at the limit: stays put
+    @test position_usteps(d) == MAX_USTEPS
+
+    turn_knob!(d, -49_000)               # 533,334 − 522,667 = 10,667
+    @test screen(d) == (absolute_um = 1000, relative_um = 1000, color = :green)
+    turn_knob!(d, 100)                   # 11,734 µsteps
+    hold_relative!(d)
+    press_relative!(d)
+    @test screen(d) == (absolute_um = 1100, relative_um = 0, color = :blue)
+    turn_knob!(d, -50)
+    @test screen(d).relative_um == -50
+    press_relative!(d)
+    @test screen(d).color === :green
+
+    for _ in 1:3
+        press_speed!(d)
+    end
+    @test d.knob_speed == 3
+    press_speed!(d)
+    @test d.knob_speed == 0
 end
