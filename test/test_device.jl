@@ -104,6 +104,16 @@ end
     @test_throws ArgumentError SOLO50(timescale = -1)
 end
 
+@testset "settle! leaves a front-panel move alone" begin
+    d, now = fake_device()
+    turn_knob!(d, 3000)
+    press_home!(d)
+    now[] = 0.5
+    before = d.move
+    settle!(d)
+    @test d.move === before
+end
+
 @testset "HOME/WORK buttons: move, pause, resume" begin
     d, now = fake_device()
     turn_knob!(d, 3000)                  # 10,667 → 42,667 instantly

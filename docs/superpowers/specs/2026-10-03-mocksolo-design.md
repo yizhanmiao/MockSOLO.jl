@@ -6,8 +6,7 @@ Source: Sutter SOLO Operation Manual Rev. 1.09b (FW v2.55+), `spec/SOLO_OpMan.pd
 ## Purpose
 
 A Julia package that impersonates a Sutter **SOLO-50** single-axis micromanipulator
-on a virtual serial port, so any host software (Python/pyserial, LabVIEW, a Julia
-driver using LibSerialPort, …) can be tested without hardware. Julia test code that
+on a virtual serial port, so any host software (Python/pyserial, LabVIEW, …) can be tested without hardware. Julia test code that
 owns the mock can additionally simulate a human at the front panel and inspect a
 log of all serial traffic.
 
@@ -21,6 +20,7 @@ log of all serial traffic.
 ### Out of scope
 
 - Windows (no POSIX pty; would need com0com).
+- libserialport-based hosts and DTR/RTS control (a pty has no modem-control lines).
 - SOLO-25 / MP-285 devices, DIP-switch configuration (fixed: SOLO/M, 50 mm,
   calibration homing enabled).
 - Fault injection (silence, garbage, dropped CR).

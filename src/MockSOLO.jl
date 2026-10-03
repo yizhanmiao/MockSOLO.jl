@@ -4,7 +4,7 @@ port. See `MockSOLO.start`.
 """
 module MockSOLO
 
-export MockSOLO50, portname, traffic, stop
+export MockSOLO50, portname, traffic, stop, open_port
 export position_usteps, screen, press_home!, hold_home!, press_work!, hold_work!,
        pulse!, press_relative!, hold_relative!, press_speed!, turn_knob!
 

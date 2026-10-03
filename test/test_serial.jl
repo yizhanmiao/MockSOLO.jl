@@ -70,23 +70,23 @@ frame(cmd::Char, arg) = [UInt8(cmd); encode_u32(arg)]
 end
 
 @testset "pty: move timing, queueing, front panel during serial move" begin
-    dev = MockSOLO.start(timescale = 10)
+    dev = MockSOLO.start(timescale = 5)
     host = open_port(portname(dev))
     try
-        target = 10_667 + um2us(5000)                 # 5000 µm: 1.667 s / 10
+        target = 10_667 + um2us(5000)                 # 5000 µm: 1.667 s / 5
         t = time()
         write(host, [frame('x', target); UInt8('c')]) # 'c' queues behind the move
         @test readn(host, 1) == [0x0d]
         @test 0.15 < time() - t < 0.5
         @test decode_u32(readn(host, 5)) == target    # exact despite timer jitter
 
-        write(host, frame('x', 10_667))
+        write(host, frame('x', 20_000))
         sleep(0.05)
         press_home!(dev)                              # ignored: serial move running
         turn_knob!(dev, 100)
         @test screen(dev).color === :red
         @test readn(host, 1) == [0x0d]
-        @test position_usteps(dev) == 10_667
+        @test position_usteps(dev) == 20_000
     finally
         close(host)
         stop(dev)
@@ -101,6 +101,8 @@ end
     t = time()
     @test stop(dev) === nothing
     @test time() - t < 1
+    w = @async wait(dev)                              # must not wait out the move
+    @test timedwait(() -> istaskdone(w), 2.0) === :ok
     @test stop(dev) === nothing
     @test_throws ErrorException screen(dev)
     @test_throws ErrorException press_home!(dev)

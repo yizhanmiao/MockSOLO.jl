@@ -16,7 +16,13 @@ function libuv_stream(fd::Cint)
     return p
 end
 
-"Open the pty at `path` the way a host program would, as a non-blocking stream."
+"""
+    open_port(path) -> IO
+
+Open the host side of the pty at `path` as a non-blocking stream. Use this to talk to
+the mock from the same Julia process: blocking I/O (`open`, IOStream, ccall reads)
+starves the mock's tasks and hangs.
+"""
 function open_port(path::AbstractString)
     fd = ccall(:open, Cint, (Cstring, Cint), path, F.JL_O_RDWR | F.JL_O_NOCTTY)
     systemerror("open $path", fd < 0)
@@ -53,6 +59,8 @@ mutable struct MockSOLO50
     const slave_fd::Cint     # held open so hosts can close and reopen the port
     const portname::String
     const t0::Float64
+    # ponytail: the log grows without bound (~MBs/hour at high poll rates); a cap or
+    # opt-out is the upgrade path.
     const log::Vector{TrafficEntry}
     const loglock::ReentrantLock
     const inbox::Channel{Vector{UInt8}}
@@ -91,9 +99,9 @@ function exec_loop(m::MockSOLO50)
     for chunk in m.inbox
         append!(buf, chunk)
         for (cmd, arg) in parse!(buf)
-            reply, wait = execute!(m.dev, cmd, arg)
-            if wait > 0
-                sleep(wait)
+            reply, dt = execute!(m.dev, cmd, arg)
+            if dt > 0
+                sleep(dt)
                 settle!(m.dev)
             end
             isopen(m.master) || return
@@ -105,6 +113,16 @@ function exec_loop(m::MockSOLO50)
             end
             record!(m, :out, reply)
         end
+    end
+end
+
+# Run a server loop, sending failures through the logger; rethrow so stop/wait see them.
+function logged(name, f, m)
+    try
+        f(m)
+    catch e
+        @error "MockSOLO $name failed" exception = (e, catch_backtrace())
+        rethrow()
     end
 end
 
@@ -120,8 +138,9 @@ function start(; timescale::Real = 1.0)
     dev = SOLO50(; timescale)        # validate before opening any fd
     mfd, sfd, name = open_pty()
     m = MockSOLO50(dev, libuv_stream(mfd), sfd, name)
-    m.reader = errormonitor(@async read_loop(m))
-    m.executor = errormonitor(@async exec_loop(m))
+    m.reader = @async logged("reader", read_loop, m)
+    bind(m.inbox, m.reader)          # a failed reader must not strand the executor
+    m.executor = @async logged("executor", exec_loop, m)
     return m
 end
 
@@ -141,8 +160,15 @@ function stop(m::MockSOLO50)
     return nothing
 end
 
-"Block until the server ends (after `stop`, or if it fails)."
-Base.wait(m::MockSOLO50) = wait(m.executor)
+"""
+Block until the server is stopped (or its reader fails). Rethrows if a server task
+failed.
+"""
+function Base.wait(m::MockSOLO50)
+    wait(m.reader)
+    istaskfailed(m.executor) && wait(m.executor)
+    return nothing
+end
 
 portname(m::MockSOLO50) = m.portname
 traffic(m::MockSOLO50) = lock(() -> copy(m.log), m.loglock)
