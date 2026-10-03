@@ -1,4 +1,4 @@
-using MockSOLO: encode_u32, decode_u32, parse!, um2us, SOLO50, execute!, settle!, MAX_USTEPS, STARTUP_USTEPS, position_usteps
+using MockSOLO: encode_u32, decode_u32, parse!, um2us
 
 @testset "wire codec" begin
     @test encode_u32(10_667) == UInt8[0xab, 0x29, 0x00, 0x00]
@@ -29,6 +29,8 @@ end
     @test parse!(buf) == [(UInt8('h'), UInt32(0)), (UInt8('w'), UInt32(0))]
     @test length(buf) == 4
 end
+
+using MockSOLO: SOLO50, execute!, settle!, MAX_USTEPS, STARTUP_USTEPS
 
 # A device driven by a hand-set clock: assign `now[]` to move time forward.
 function fake_device(; timescale = 1.0)
