@@ -45,3 +45,94 @@ function parse!(buf::Vector{UInt8})
     end
     return cmds
 end
+
+# One straight-line move segment. Position is computed from it lazily; there is
+# no tick loop. `kind` is :idle, :serial, :home, :work, :pulse or :knob.
+struct Move
+    kind::Symbol
+    from::Int
+    to::Int
+    t0::Float64    # clock time the segment started
+end
+
+mutable struct SOLO50{C}
+    const lock::ReentrantLock
+    const clock::C
+    const timescale::Float64
+    move::Move
+    paused::Bool   # when true, position is frozen at move.from
+    home::Int
+    work::Int
+    rel_origin::Int
+    relative::Bool
+    knob_speed::Int
+end
+
+function SOLO50(; timescale::Real = 1.0, clock = time)
+    timescale > 0 || throw(ArgumentError("timescale must be > 0, got $timescale"))
+    p = STARTUP_USTEPS
+    return SOLO50(ReentrantLock(), clock, Float64(timescale), Move(:idle, p, p, clock()),
+                  false, p, p, 0, false, 0)
+end
+
+# Wall seconds a segment takes; an Inf timescale makes it 0.
+duration(d::SOLO50, m::Move) = abs(m.to - m.from) * USTEP_UM / SPEED_UM_S / d.timescale
+
+function pos_at(d::SOLO50, t)
+    m = d.move
+    d.paused && return m.from
+    dur = duration(d, m)
+    f = dur == 0 ? 1.0 : clamp((t - m.t0) / dur, 0.0, 1.0)
+    return m.from + round(Int, (m.to - m.from) * f)
+end
+
+busy(d::SOLO50, t) = d.paused || t < d.move.t0 + duration(d, d.move)
+
+function start_move!(d::SOLO50, kind::Symbol, target::Integer, t)
+    d.move = Move(kind, pos_at(d, t), clamp_us(target), t)
+    d.paused = false
+    return duration(d, d.move)
+end
+
+"""
+    execute!(d, cmd, arg) -> (reply, wait)
+
+Run one parsed serial command. The caller sends `reply` after `wait` seconds.
+Move commands take over any front-panel move, running or paused.
+"""
+function execute!(d::SOLO50, cmd::UInt8, arg::UInt32)
+    lock(d.lock) do
+        t = d.clock()
+        c = Char(cmd)
+        if c in ('c', 'C')
+            return [encode_u32(pos_at(d, t)); CR], 0.0
+        elseif c == 'h'
+            return [CR], start_move!(d, :serial, d.home, t)
+        elseif c == 'w'
+            return [CR], start_move!(d, :serial, d.work, t)
+        elseif c == 'H'
+            d.home = clamp_us(arg)
+            return [CR], start_move!(d, :serial, d.home, t)
+        elseif c == 'W'
+            d.work = clamp_us(arg)
+            return [CR], start_move!(d, :serial, d.work, t)
+        elseif c in ('x', 'X')
+            return [CR], start_move!(d, :serial, arg, t)
+        else # 'v': accepted, no effect on SOLO-50
+            return [CR], 0.0
+        end
+    end
+end
+
+# Called once the server has slept through a serial move: snap to the target so a
+# 'c' right after the CR reads it exactly despite timer jitter. Safe because the
+# front panel cannot change a running serial move.
+function settle!(d::SOLO50)
+    lock(d.lock) do
+        m = d.move
+        m.kind === :serial && (d.move = Move(:serial, m.to, m.to, d.clock()))
+        return nothing
+    end
+end
+
+position_usteps(d::SOLO50) = lock(() -> UInt32(pos_at(d, d.clock())), d.lock)

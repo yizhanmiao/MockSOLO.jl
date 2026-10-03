@@ -4,6 +4,8 @@ port. See `MockSOLO.start`.
 """
 module MockSOLO
 
+export position_usteps
+
 include("device.jl")
 
 end
