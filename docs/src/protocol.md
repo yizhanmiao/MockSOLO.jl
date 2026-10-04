@@ -57,7 +57,7 @@ seconds of wall time, and its CR is sent at the end. `timescale` is set in
 | Speed | 3000 µm/s for all moves |
 | Startup position | 1000 µm = 10,667 µsteps |
 | Default home / work | 10,667 µsteps each |
-| Pulse step | 30 µsteps (2.85 µm) |
+| Pulse step | 30 µsteps = 2.8125 µm (manual: nominal 2.85 µm) |
 
 ## Traffic log
 

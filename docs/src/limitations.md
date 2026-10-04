@@ -6,7 +6,8 @@
   - In pyserial, don't set `.dtr` or `.rts`; the underlying ioctls fail.
 - **Stale bytes between sessions.** The mock holds the port open while hosts come
   and go, so replies a host never read are delivered to the next host. Purge the
-  input buffer after opening.
+  input buffer after opening, and allow for a late CR from a move the previous
+  host left running (see [Host software](@ref)).
 - **No baud-rate or framing enforcement.** A pty has neither, so any setting works,
   including a wrong one. The real device needs 57600 8N1.
 - **POSIX only.** macOS and Linux. Windows would need a virtual COM-port pair such as

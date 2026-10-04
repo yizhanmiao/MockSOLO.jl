@@ -1,5 +1,9 @@
 using Documenter, MockSOLO
 
+# checkdocs only catches docstrings missing from the pages, not exports without one.
+undocumented = filter(n -> !Docs.hasdoc(MockSOLO, n), names(MockSOLO))
+isempty(undocumented) || error("exports without docstrings: $undocumented")
+
 makedocs(;
     sitename = "MockSOLO.jl",
     modules = [MockSOLO],

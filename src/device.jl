@@ -6,7 +6,7 @@ const UM_USTEP = 10.66666666667    # µsteps per µm
 const MAX_USTEPS = 533_334         # SOLO-50 end of travel (Table 4-3)
 const SPEED_UM_S = 3000.0          # the only speed; 'v' has no effect on SOLO-50
 const STARTUP_USTEPS = 10_667      # 1000 µm, after calibration homing
-const PULSE_USTEPS = 30            # 2.85 µm
+const PULSE_USTEPS = 30            # 2.8125 µm (manual: nominal 2.85 µm)
 const CR = 0x0d
 
 um2us(um::Real) = round(Int, um * UM_USTEP)
@@ -235,8 +235,8 @@ press_speed!(d::SOLO50) = when_idle(_ -> d.knob_speed = mod(d.knob_speed + 1, 4)
 """
     pulse!(dev)
 
-Press PULSE: move +30 µsteps (2.85 µm), clamped to the end of travel. Ignored during a
-move.
+Press PULSE: move +30 µsteps (2.8125 µm), clamped to the end of travel. Ignored during
+a move.
 """
 pulse!(d::SOLO50) =
     when_idle(t -> start_move!(d, :pulse, pos_at(d, t) + PULSE_USTEPS, t), d)

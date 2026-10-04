@@ -46,7 +46,10 @@ is paid once.
   a single CR (`0x0D`) when its action completes.
 - **Purge input after opening.** The mock keeps the port open between host sessions,
   so replies a previous host never read are still queued. The manual (§4.2 note 3)
-  recommends this purge for the real device too.
+  recommends this purge for the real device too. A purge only drops bytes that have
+  already arrived: if the previous host left a move running, its late CR can still
+  arrive after the purge. To be safe, wait out the longest possible move (full travel
+  takes 16.7 s / `timescale`) before purging.
 - **Leave DTR/RTS alone.** A pty has no modem-control lines; see [Limitations](@ref).
 - **Pick a timescale.** `timescale = 1` is real time (a 5000 µm move takes 1.67 s).
   For test suites use 100 or more. `Inf` makes moves instant, but then you cannot
@@ -54,5 +57,6 @@ is paid once.
 
 ## LabVIEW and others
 
-Any software that opens the port path as a plain serial device at 57600 8N1 should
-work. Only Julia and pyserial hosts have been tested.
+Software that opens the port path as a plain serial device at 57600 8N1 should work,
+unless it is built on libserialport or sets DTR/RTS (see [Limitations](@ref)). Only
+Julia and pyserial hosts have been tested.
