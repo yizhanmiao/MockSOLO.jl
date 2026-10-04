@@ -79,3 +79,13 @@ proc.terminate()
   open the port, and setting DTR/RTS (TIOCM* ioctls) raises ENOTTY (with pyserial,
   don't touch `.dtr`/`.rts`).
 - Windows is not supported (would need com0com).
+
+## Documentation
+
+Build and browse the docs locally (from the repo root):
+
+```sh
+julia --project=docs -e 'using Pkg; Pkg.instantiate()'   # once
+julia --project=docs docs/make.jl                        # build into docs/build/
+julia --project=docs -e 'using LiveServer; servedocs()'  # live-reload server; prints its URL
+```

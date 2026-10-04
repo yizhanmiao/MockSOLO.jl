@@ -53,4 +53,9 @@ stop(dev)
 
 ## Where next
 
+- [Host software](@ref) covers driving the mock from Python or another program.
+- [Protocol](@ref) is the byte-level command reference and what the mock does where
+  the manual is silent.
+- [Front panel](frontpanel.md) simulates a person at the controller.
+- [Limitations](@ref) lists what a pty can't do.
 - [API reference](@ref) documents every function.

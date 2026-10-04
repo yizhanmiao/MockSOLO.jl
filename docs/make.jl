@@ -12,6 +12,10 @@ makedocs(;
     ),
     pages = [
         "Home" => "index.md",
+        "Host software" => "hosts.md",
+        "Protocol" => "protocol.md",
+        "Front panel" => "frontpanel.md",
+        "Limitations" => "limitations.md",
         "API reference" => "api.md",
     ],
 )
