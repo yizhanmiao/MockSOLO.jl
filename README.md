@@ -1,5 +1,6 @@
 # MockSOLO
 
+[![Docs: stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://yizhanmiao.github.io/MockSOLO.jl/stable/)
 [![Docs: dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://yizhanmiao.github.io/MockSOLO.jl/dev/)
 
 A mock **Sutter SOLO-50** micromanipulator for testing host software without
@@ -88,7 +89,7 @@ proc.terminate()
 
 ## Documentation
 
-Online: https://yizhanmiao.github.io/MockSOLO.jl/dev/
+Online: https://yizhanmiao.github.io/MockSOLO.jl/stable/
 
 Build and browse the docs locally (from the repo root):
 

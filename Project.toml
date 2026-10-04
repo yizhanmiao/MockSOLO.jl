@@ -1,7 +1,7 @@
 name = "MockSOLO"
 uuid = "9bbf5785-f3df-4456-bcbe-bf72a50ad768"
-authors = ["Yizhan <myz60133@me.com>"]
-version = "0.1.0"
+authors = ["Yizhan <yizhanmiao@pm.me>"]
+version = "1.0.0"
 
 [compat]
 julia = "1.10"
