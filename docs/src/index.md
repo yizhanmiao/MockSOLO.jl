@@ -13,6 +13,11 @@ a serial port, such as pyserial, can talk to it as if it were the real controlle
 
 macOS and Linux only.
 
+!!! note "AI disclosure"
+    Most of this package was written by Claude (Anthropic's AI model) using Claude Code:
+    the code, tests and documentation. The author directed and reviewed the work.
+    Treat it as you would any young, lightly tested package.
+
 ## Install
 
 MockSOLO is not registered. Install it from a local clone:

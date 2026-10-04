@@ -1,5 +1,7 @@
 # MockSOLO
 
+[![Docs: dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://yizhanmiao.github.io/MockSOLO.jl/dev/)
+
 A mock **Sutter SOLO-50** micromanipulator for testing host software without
 hardware. It serves the SOLO's USB/serial protocol (Operation Manual Rev. 1.09b,
 chapter 4) on a virtual serial port (POSIX pty), so anything that can open a COM
@@ -7,6 +9,10 @@ port — pyserial, LabVIEW — can talk to it. From Julia you can also
 press the front-panel buttons and read a log of every byte exchanged.
 
 macOS and Linux only.
+
+> **AI disclosure:** Most of this package was written by Claude (Anthropic's AI model)
+> using Claude Code: the code, tests and documentation. The author directed and
+> reviewed the work. Treat it as you would any young, lightly tested package.
 
 ## Quick start (Julia)
 
@@ -81,6 +87,8 @@ proc.terminate()
 - Windows is not supported (would need com0com).
 
 ## Documentation
+
+Online: https://yizhanmiao.github.io/MockSOLO.jl/dev/
 
 Build and browse the docs locally (from the repo root):
 

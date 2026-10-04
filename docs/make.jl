@@ -7,12 +7,12 @@ isempty(undocumented) || error("exports without docstrings: $undocumented")
 makedocs(;
     sitename = "MockSOLO.jl",
     modules = [MockSOLO],
-    remotes = nothing,          # no git remote yet
+    repo = Remotes.GitHub("yizhanmiao", "MockSOLO.jl"),
     checkdocs = :exports,
     format = Documenter.HTML(;
         prettyurls = get(ENV, "CI", nothing) == "true",
-        edit_link = nothing,    # no git remote yet
-        repolink = nothing,
+        canonical = "https://yizhanmiao.github.io/MockSOLO.jl",
+        edit_link = "main",
     ),
     pages = [
         "Home" => "index.md",
@@ -23,3 +23,5 @@ makedocs(;
         "API reference" => "api.md",
     ],
 )
+
+deploydocs(; repo = "github.com/yizhanmiao/MockSOLO.jl.git", devbranch = "main")
